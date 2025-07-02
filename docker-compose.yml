@@ -1,0 +1,22 @@
+# docker-compose.yml
+
+services:
+  db:
+    image: postgres:14-alpine # Use a recent, lightweight PostgreSQL image
+    restart: always
+    environment:
+      POSTGRES_DB: crew_db # Your database name
+      POSTGRES_USER: user1 # Your database username
+      POSTGRES_PASSWORD: root # Your database password
+    volumes:
+      - db_data_new:/var/lib/postgresql/data # Persist data to a Docker volume
+    ports:
+      - "5432:5432" # Map container port 5432 to host port 5432
+    healthcheck: # Optional: Check if the database is ready
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  db_data_new: # Define the Docker volume for data persistence

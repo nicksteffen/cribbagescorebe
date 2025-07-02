@@ -1,0 +1,17 @@
+
+
+deck = list(range(1,41))
+players = 3
+ps = [[] for _ in range(players)]
+
+
+
+while deck:
+	for p in ps:
+		if not deck:
+			break
+		p.append(deck.pop())
+
+
+print(ps)
+

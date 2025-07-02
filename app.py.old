@@ -1,0 +1,117 @@
+from flask import Flask, jsonify, render_template, request, redirect, url_for
+from flask_cors import CORS
+from flask_jwt_extended import (
+    create_access_token, JWTManager, get_jwt_identity, jwt_required,
+    set_access_cookies, unset_jwt_cookies # Removed get_jwt_csrf_token and get_csrf_token
+)
+from werkzeug.security import generate_password_hash, check_password_hash
+# --- NEW IMPORTS ---
+from db import db        # Import the db instance
+from models import User  # Import your User model (and any other models)
+# from dotenv import load_dotenv 
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+app = Flask(__name__)
+
+app.config["JWT_SECRET_KEY"] = "your-super-secret-jwt-key"
+app.config["JWT_COOKIE_CSRF_PROTECT"] = False
+jwt = JWTManager(app)
+
+# CORS(app, supports_credentials=True) # Essential for CORS with cookies
+# CORS(app)
+CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
+
+
+# --- PostgreSQL Database Configuration for Local Docker (from .env) ---
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
+if not app.config["SQLALCHEMY_DATABASE_URI"]:
+    raise ValueError("DATABASE_URL environment variable is not set! Please check your .env file or system environment.")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# --- Initialize SQLAlchemy with the app ---
+# This is the key step for segmentation: Associate the db instance with the Flask app
+db.init_app(app)
+
+
+# --- Dummy User Storage (Replace with a real database in production) ---
+# In a real app, these would come from your database
+users = {
+    "user1": {
+        "id": "1",
+        "username": "user1",
+        "password_hash": generate_password_hash("password123") # Hash a default password
+    },
+    "user2": {
+        "id": "2",
+        "username": "user2",
+        "password_hash": generate_password_hash("securepass")
+    }
+}
+
+@app.route("/")
+def index():
+  return render_template('index.html')
+
+
+# @app.route("/api/data", methods=["GET"])
+@app.get("/api/data")
+@jwt_required()
+def get_data():
+  print("getting data")
+
+  user = get_jwt_identity()
+  print(user)
+  # This is a dummy endpoint that returns some data
+  return jsonify({"message": "Hello, World!"})  
+
+
+@app.post("/api/data")
+@jwt_required()
+def get_post_data():
+   print("post")
+   user = get_jwt_identity()
+   data = request.json
+   print(data.get('test', f'bad prop name, see {data.keys()}'))
+   print(user)
+   return("test post")
+
+@app.post("/api/login")
+def login():
+  username = request.json.get('username', None)
+  password = request.json.get('password', None)
+
+
+  # lookup user in the dummy storage
+  user_data = users.get(username)
+
+  if not user_data or not check_password_hash(user_data["password_hash"], password):
+      return jsonify({"msg": "Bad username or password"}), 401 # Unauthorized
+
+  access_token = create_access_token(identity=user_data["id"])
+
+
+  # response = jsonify({"msg": "Login successful", "csrf_token": get_jwt_csrf_token()}) # <--- Return CSRF token
+  # set_access_cookies(response, access_token) # <--- Set JWT in HTTP-only cookie
+  # return response, 200
+  return jsonify(access_token=access_token) # Include the token in the response
+
+
+@app.post("/api/logout")
+def logout():
+    response = jsonify({"msg": "Logout successful"})
+    unset_jwt_cookies(response) # <--- Clears JWT cookie
+    return response, 200
+
+
+
+@app.get("/api/message")
+def get_message_data(): # Renamed function to avoid conflict with route string
+    # It's good practice to use jsonify for API responses
+    return jsonify({"text" :"hello!"})
+
+
+if __name__ == "__main__":
+  app.run(debug=True, ssl_context='adhoc')
