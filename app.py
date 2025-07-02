@@ -24,8 +24,10 @@ app.config["JWT_TOKEN_LOCATION"] = ["headers"]
 app.config["JWT_COOKIE_CSRF_PROTECT"] = False
 jwt = JWTManager(app)
 
+frontend_cors_origin = os.environ.get("FRONTEND_CORS_ORIGIN", "http://localhost:3000")
+
 # --- CORS Configuration ---
-CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
+CORS(app, resources={r"/api/*": {"origins": frontend_cors_origin}}, supports_credentials=True)
 
 # --- PostgreSQL Database Configuration for Local Docker (from .env) ---
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
